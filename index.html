@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<link rel="manifest" href="manifest.json">
+<title>BTCUSD Trade Judge</title>
+<style>
+:root{--bg:#0b0f14;--card:#151b23;--line:#293241;--txt:#f3f6fa;--mut:#93a1b2;--good:#24c875;--bad:#ff5b62;--warn:#ffb020;--blue:#4da3ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:680px;margin:auto;padding:18px 14px 40px}.top{display:flex;justify-content:space-between;align-items:end;margin-bottom:14px}
+h1{font-size:22px;margin:0}.sub{color:var(--mut);font-size:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;margin:12px 0}
+h2{font-size:15px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.row{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:center;margin:9px 0}
+label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;color:white;border:1px solid #354052;border-radius:11px;padding:11px;font-size:16px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.seg button{border:1px solid #354052;background:#0e141b;color:#cbd5e1;border-radius:10px;padding:10px 3px}
+.seg button.on{border-color:var(--blue);background:#17314b;color:white}.checks label{display:flex;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #252d38}
+.checks input{width:20px;height:20px}.hero{text-align:center;padding:20px 10px}.hero .status{font-size:31px;font-weight:800}.hero .detail{margin-top:8px;color:var(--mut);line-height:1.55}
+.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.neutral{color:#dbe4ee}
+.meter{height:9px;background:#28313d;border-radius:9px;overflow:hidden;margin-top:12px}.meter span{display:block;height:100%;background:currentColor}
+.alert{font-size:19px;font-weight:750;line-height:1.45}.tiny{font-size:12px;color:var(--mut);line-height:1.5}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions button{padding:12px;border-radius:11px;border:1px solid #354052;background:#101821;color:white}
+@media(max-width:450px){.grid{grid-template-columns:1fr}.row{grid-template-columns:78px 1fr}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="top"><div><h1>BTCUSD Trade Judge</h1><div class="sub">Ver.2 · 手動判定 / リスク警報</div></div><div class="sub" id="saved"></div></div>
+
+<div class="card">
+<h2>ポジション・価格</h2>
+<div class="grid">
+<div><label>保有ポジション</label><select id="position"><option value="none">なし</option><option value="long">LONG</option><option value="short">SHORT</option></select></div>
+<div><label>エントリー価格</label><input id="entry" type="number" step="0.01" placeholder="例 84500"></div>
+<div><label>現在価格</label><input id="current" type="number" step="0.01" placeholder="例 84720"></div>
+<div><label>レンジ上限</label><input id="rangeHigh" type="number" step="0.01" placeholder="例 84600"></div>
+<div><label>レンジ下限</label><input id="rangeLow" type="number" step="0.01" placeholder="例 83800"></div>
+</div>
+</div>
+
+<div class="card"><h2>上位足 → 1分トリガー</h2>
+<div id="signals"></div></div>
+
+<div class="card">
+<h2>レンジブレイク確認</h2>
+<div class="checks">
+<label><input type="checkbox" data-break="break">レンジを突破</label>
+<label><input type="checkbox" data-break="close">終値で突破</label>
+<label><input type="checkbox" data-break="hold">次足も突破側を維持</label>
+<label><input type="checkbox" data-break="aps">APSがブレイク方向</label>
+<label><input type="checkbox" data-break="ema">EMA20がブレイク方向を支持</label>
+<label><input type="checkbox" data-break="retest">リテスト成功 / レンジ内へ戻らない</label>
+</div>
+<div style="margin-top:12px"><label>ブレイク方向</label><select id="breakDir"><option value="none">未確定</option><option value="up">上抜け</option><option value="down">下抜け</option></select></div>
+</div>
+
+<div class="card hero">
+<div class="sub">総合判定</div><div id="judge" class="status neutral">WAIT</div>
+<div id="judgeDetail" class="detail"></div><div class="meter"><span id="meter" style="width:0%"></span></div>
+</div>
+
+<div class="card"><h2>保有ポジション判定</h2><div id="positionAlert" class="alert neutral">ポジションなし</div><div id="pnl" class="tiny" style="margin-top:8px"></div></div>
+
+<div class="card"><h2>ブレイク警報</h2><div id="breakAlert" class="alert neutral">ブレイク条件を入力してください</div><div id="breakCount" class="tiny"></div></div>
+
+<div class="card"><h2>注文前チェック</h2>
+<div class="grid"><div><label>SL</label><input id="sl" type="number" step="0.01"></div><div><label>TP</label><input id="tp" type="number" step="0.01"></div></div>
+<div id="rr" class="tiny" style="margin-top:10px">RR: --</div>
+</div>
+
+<div class="actions"><button id="reset">リセット</button><button id="save">保存</button></div>
+<p class="tiny">判定は設定したルールを機械的に表示する補助ツールです。価格取得や発注は行いません。損切り・発注はご自身の判断で行ってください。</p>
+</div>
+<script>
+const defs=[
+["tf1h","1H","up","flat","down"],["tf15","15m","up","flat","down"],["tf5","5m","up","flat","down"],
+["aps","APS","up","flat","down"],["ema","EMA","up","flat","down"],
+["seo","せおくん","buy","none","sell"],["take","たけお/たけこ","buy","none","sell"]];
+const labels={up:"↑",flat:"－",down:"↓",buy:"BUY",none:"－",sell:"SELL"};
+let state={};
+const sig=document.getElementById("signals");
+defs.forEach(d=>{
+ const [id,name,a,b,c]=d; state[id]=b;
+ const row=document.createElement("div"); row.className="row";
+ row.innerHTML=`<label>${name}</label><div class="seg">${[a,b,c].map(v=>`<button data-id="${id}" data-v="${v}" class="${v===b?'on':''}">${labels[v]}</button>`).join("")}</div>`;
+ sig.appendChild(row);
+});
+function num(id){let v=parseFloat(document.getElementById(id).value);return Number.isFinite(v)?v:null}
+function calc(){
+ let up=0,down=0;
+ ["tf1h","tf15","tf5","aps","ema"].forEach(k=>{if(state[k]=="up")up++;if(state[k]=="down")down++});
+ ["seo","take"].forEach(k=>{if(state[k]=="buy")up++;if(state[k]=="sell")down++});
+ let direction="wait",cls="neutral";
+ if(up>=5 && up-down>=3){direction="LONG";cls="good"}
+ else if(down>=5 && down-up>=3){direction="SHORT";cls="bad"}
+ document.getElementById("judge").textContent=direction;
+ document.getElementById("judge").className="status "+cls;
+ let max=Math.max(up,down), conf=Math.round(max/7*100);
+ document.getElementById("meter").style.width=conf+"%";
+ document.getElementById("meter").className=cls;
+ let aligned = direction==="LONG" ? up : direction==="SHORT" ? down : max;
+ document.getElementById("judgeDetail").textContent=`上方向 ${up}/7 ・ 下方向 ${down}/7 ・ 一致度 ${aligned}/7`;
+ const checks=[...document.querySelectorAll("[data-break]")]; let bc=checks.filter(x=>x.checked).length;
+ const bd=document.getElementById("breakDir").value;
+ let ba="ブレイク条件を入力してください", bac="neutral";
+ if(bd!="none"){
+   if(bc>=5){ba=(bd=="up"?"🟢 上抜け":"🔴 下抜け")+"シナリオ有効：逆張り禁止 / 順方向の押し・戻り待ち";bac=bd=="up"?"good":"bad"}
+   else if(bc==4){ba="🚨 逆ポジション撤退を優先して判断";bac="warn"}
+   else if(bc>=3){ba="⚠️ 逆張り新規エントリー禁止";bac="warn"}
+   else if(bc>=2){ba="⚠️ ブレイク警戒";bac="warn"}
+   else ba="まだブレイク確定扱いにしない";
+ }
+ document.getElementById("breakAlert").textContent=ba;document.getElementById("breakAlert").className="alert "+bac;
+ document.getElementById("breakCount").textContent=`成立 ${bc}/6`;
+ const pos=document.getElementById("position").value;
+ let pa="ポジションなし", pac="neutral";
+ if(pos!="none"){
+   const adverse=(pos=="short"&&bd=="up")||(pos=="long"&&bd=="down");
+   if(adverse&&bc>=5){pa=`🚨 ${pos.toUpperCase()}シナリオ無効 — 損切り条件成立`;pac="bad"}
+   else if(adverse&&bc>=4){pa=`⚠️ ${pos.toUpperCase()}撤退を優先して判断`;pac="warn"}
+   else if((pos=="short"&&direction=="LONG")||(pos=="long"&&direction=="SHORT")){pa=`⚠️ 総合判定が${pos.toUpperCase()}と逆方向`;pac="warn"}
+   else {pa=`${pos.toUpperCase()} 継続可否を監視`;pac=pos=="long"?"good":"bad"}
+ }
+ document.getElementById("positionAlert").textContent=pa;document.getElementById("positionAlert").className="alert "+pac;
+ let e=num("entry"),cur=num("current");
+ document.getElementById("pnl").textContent=(pos!="none"&&e&&cur)?`値幅: ${((pos=="long"?cur-e:e-cur)).toFixed(2)} USD`:"";
+ let sl=num("sl"),tp=num("tp");
+ if(pos!="none"&&e&&sl&&tp){
+   let risk=Math.abs(e-sl), reward=Math.abs(tp-e), rr=risk?reward/risk:null;
+   document.getElementById("rr").textContent=rr?`RR: 1:${rr.toFixed(2)} ${rr>=1.5?"✓":"⚠ 1.5未満"}`:"RR: --";
+ } else document.getElementById("rr").textContent="RR: --";
+}
+document.addEventListener("click",e=>{
+ if(e.target.dataset.id){let id=e.target.dataset.id;state[id]=e.target.dataset.v;document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v==state[id]));calc()}
+});
+document.querySelectorAll("input,select").forEach(x=>x.addEventListener("input",calc));
+document.getElementById("save").onclick=()=>{let data={state};document.querySelectorAll("input,select").forEach(x=>{if(x.id)data[x.id]=x.type=="checkbox"?x.checked:x.value});data.checks=[...document.querySelectorAll("[data-break]")].map(x=>x.checked);localStorage.setItem("btcjudge2",JSON.stringify(data));document.getElementById("saved").textContent="保存しました"};
+document.getElementById("reset").onclick=()=>{localStorage.removeItem("btcjudge2");location.reload()};
+try{let d=JSON.parse(localStorage.getItem("btcjudge2"));if(d){state={...state,...d.state};defs.forEach(x=>document.querySelectorAll(`[data-id="${x[0]}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v==state[x[0]])));Object.keys(d).forEach(k=>{let el=document.getElementById(k);if(el&&k!="state"&&k!="checks")el.value=d[k]});if(d.checks)d.checks.forEach((v,i)=>{let c=document.querySelectorAll("[data-break]")[i];if(c)c.checked=v})}}catch(e){}
+calc();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
+</script></body></html>

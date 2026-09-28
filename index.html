@@ -23,7 +23,9 @@ label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;co
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><div><h1>BTCUSD Trade Judge</h1><div class="sub">Ver.2 · 手動判定 / リスク警報</div></div><div class="sub" id="saved"></div></div>
+<div class="top"><div><h1>BTCUSD Trade Judge</h1><div class="sub">Ver.3 · BTCJUDGE自動連携 / リスク警報</div></div><div class="sub" id="saved"></div></div>
+
+<div class="card"><h2>自動連携</h2><div id="liveStatus" class="tiny">BTCJUDGE 接続待機...</div></div>
 
 <div class="card">
 <h2>ポジション・価格</h2>
@@ -136,5 +138,36 @@ document.getElementById("save").onclick=()=>{let data={state};document.querySele
 document.getElementById("reset").onclick=()=>{localStorage.removeItem("btcjudge2");location.reload()};
 try{let d=JSON.parse(localStorage.getItem("btcjudge2"));if(d){state={...state,...d.state};defs.forEach(x=>document.querySelectorAll(`[data-id="${x[0]}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v==state[x[0]])));Object.keys(d).forEach(k=>{let el=document.getElementById(k);if(el&&k!="state"&&k!="checks")el.value=d[k]});if(d.checks)d.checks.forEach((v,i)=>{let c=document.querySelectorAll("[data-break]")[i];if(c)c.checked=v})}}catch(e){}
 calc();
+const WORKER_URL="https://btc-judge-webhook.stmm-casting92.workers.dev/";
+let lastReceivedAt=null;
+function setSignal(id,v){
+ if(!v)return; state[id]=v;
+ document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+}
+function dir(v){v=String(v||"").toUpperCase();return v==="UP"?"up":v==="DOWN"?"down":"flat"}
+async function syncBTCJudge(){
+ const st=document.getElementById("liveStatus");
+ try{
+  const r=await fetch(WORKER_URL,{cache:"no-store"});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const all=await r.json(), d=all.BTCJUDGE;
+  if(!d){st.textContent="BTCJUDGE: データ待機中";return}
+  document.getElementById("current").value=d.price??"";
+  document.getElementById("rangeHigh").value=d.range_high??"";
+  document.getElementById("rangeLow").value=d.range_low??"";
+  setSignal("tf1h",dir(d["1h"])); setSignal("tf15",dir(d["15m"])); setSignal("tf5",dir(d["5m"]));
+  setSignal("ema",dir(d.ema));
+  if(d.break==="UP")document.getElementById("breakDir").value="up";
+  else if(d.break==="DOWN")document.getElementById("breakDir").value="down";
+  else document.getElementById("breakDir").value="none";
+  lastReceivedAt=d.received_at||all.updated||null;
+  const t=lastReceivedAt?new Date(lastReceivedAt).toLocaleTimeString("ja-JP"):"--";
+  st.textContent=`🟢 BTCJUDGE接続中 / ${t} / price ${d.price??"--"} / Core判定 ${d.judge??"--"}`;
+  calc();
+ }catch(e){st.textContent="🔴 BTCJUDGE取得エラー: "+e.message}
+}
+setInterval(syncBTCJudge,2500);
+syncBTCJudge();
+
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
 </script></body></html>

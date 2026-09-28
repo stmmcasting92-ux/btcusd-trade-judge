@@ -23,9 +23,9 @@ label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;co
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><div><h1>BTCUSD Trade Judge</h1><div class="sub">Ver.3 · BTCJUDGE自動連携 / リスク警報</div></div><div class="sub" id="saved"></div></div>
+<div class="top"><div><h1>BTCUSD Trade Judge</h1><div class="sub">Ver.4 · 全シグナル自動連携 / リスク警報</div></div><div class="sub" id="saved"></div></div>
 
-<div class="card"><h2>自動連携</h2><div id="liveStatus" class="tiny">BTCJUDGE 接続待機...</div></div>
+<div class="card"><h2>自動連携</h2><div id="liveStatus" class="tiny">Worker/KV 接続待機...</div><div id="sourceStatus" class="tiny" style="margin-top:6px"></div></div>
 
 <div class="card">
 <h2>ポジション・価格</h2>
@@ -69,13 +69,13 @@ label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;co
 </div>
 
 <div class="actions"><button id="reset">リセット</button><button id="save">保存</button></div>
-<p class="tiny">判定は設定したルールを機械的に表示する補助ツールです。価格取得や発注は行いません。損切り・発注はご自身の判断で行ってください。</p>
+<p class="tiny">判定は設定したルールを機械的に表示する補助ツールです。価格・シグナルはWorker/KVから自動取得します。発注は行いません。損切り・発注はご自身の判断で行ってください。</p>
 </div>
 <script>
 const defs=[
 ["tf1h","1H","up","flat","down"],["tf15","15m","up","flat","down"],["tf5","5m","up","flat","down"],
 ["aps","APS","up","flat","down"],["ema","EMA","up","flat","down"],
-["seo","せおくん","buy","none","sell"],["take","たけお/たけこ","buy","none","sell"]];
+["seo","せおくん","buy","none","sell"],["takeo","たけお","buy","none","sell"],["takeko","たけこ","buy","none","sell"]];
 const labels={up:"↑",flat:"－",down:"↓",buy:"BUY",none:"－",sell:"SELL"};
 let state={};
 const sig=document.getElementById("signals");
@@ -89,17 +89,17 @@ function num(id){let v=parseFloat(document.getElementById(id).value);return Numb
 function calc(){
  let up=0,down=0;
  ["tf1h","tf15","tf5","aps","ema"].forEach(k=>{if(state[k]=="up")up++;if(state[k]=="down")down++});
- ["seo","take"].forEach(k=>{if(state[k]=="buy")up++;if(state[k]=="sell")down++});
+ ["seo","takeo","takeko"].forEach(k=>{if(state[k]=="buy")up++;if(state[k]=="sell")down++});
  let direction="wait",cls="neutral";
  if(up>=5 && up-down>=3){direction="LONG";cls="good"}
  else if(down>=5 && down-up>=3){direction="SHORT";cls="bad"}
  document.getElementById("judge").textContent=direction;
  document.getElementById("judge").className="status "+cls;
- let max=Math.max(up,down), conf=Math.round(max/7*100);
+ let max=Math.max(up,down), conf=Math.round(max/8*100);
  document.getElementById("meter").style.width=conf+"%";
  document.getElementById("meter").className=cls;
  let aligned = direction==="LONG" ? up : direction==="SHORT" ? down : max;
- document.getElementById("judgeDetail").textContent=`上方向 ${up}/7 ・ 下方向 ${down}/7 ・ 一致度 ${aligned}/7`;
+ document.getElementById("judgeDetail").textContent=`上方向 ${up}/8 ・ 下方向 ${down}/8 ・ 一致度 ${aligned}/8`;
  const checks=[...document.querySelectorAll("[data-break]")]; let bc=checks.filter(x=>x.checked).length;
  const bd=document.getElementById("breakDir").value;
  let ba="ブレイク条件を入力してください", bac="neutral";
@@ -139,35 +139,38 @@ document.getElementById("reset").onclick=()=>{localStorage.removeItem("btcjudge2
 try{let d=JSON.parse(localStorage.getItem("btcjudge2"));if(d){state={...state,...d.state};defs.forEach(x=>document.querySelectorAll(`[data-id="${x[0]}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v==state[x[0]])));Object.keys(d).forEach(k=>{let el=document.getElementById(k);if(el&&k!="state"&&k!="checks")el.value=d[k]});if(d.checks)d.checks.forEach((v,i)=>{let c=document.querySelectorAll("[data-break]")[i];if(c)c.checked=v})}}catch(e){}
 calc();
 const WORKER_URL="https://btc-judge-webhook.stmm-casting92.workers.dev/";
-let lastReceivedAt=null;
-function setSignal(id,v){
- if(!v)return; state[id]=v;
- document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v===v));
-}
+let prevCore=null;
+function setSignal(id,v){if(!v)return;state[id]=v;document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v===v))}
 function dir(v){v=String(v||"").toUpperCase();return v==="UP"?"up":v==="DOWN"?"down":"flat"}
-async function syncBTCJudge(){
- const st=document.getElementById("liveStatus");
- try{
-  const r=await fetch(WORKER_URL,{cache:"no-store"});
-  if(!r.ok)throw new Error("HTTP "+r.status);
-  const all=await r.json(), d=all.BTCJUDGE;
-  if(!d){st.textContent="BTCJUDGE: データ待機中";return}
-  document.getElementById("current").value=d.price??"";
-  document.getElementById("rangeHigh").value=d.range_high??"";
-  document.getElementById("rangeLow").value=d.range_low??"";
-  setSignal("tf1h",dir(d["1h"])); setSignal("tf15",dir(d["15m"])); setSignal("tf5",dir(d["5m"]));
-  setSignal("ema",dir(d.ema));
-  if(d.break==="UP")document.getElementById("breakDir").value="up";
-  else if(d.break==="DOWN")document.getElementById("breakDir").value="down";
-  else document.getElementById("breakDir").value="none";
-  lastReceivedAt=d.received_at||all.updated||null;
-  const t=lastReceivedAt?new Date(lastReceivedAt).toLocaleTimeString("ja-JP"):"--";
-  st.textContent=`🟢 BTCJUDGE接続中 / ${t} / price ${d.price??"--"} / Core判定 ${d.judge??"--"}`;
-  calc();
- }catch(e){st.textContent="🔴 BTCJUDGE取得エラー: "+e.message}
+function tradeSignal(d){if(!d)return null;const s=String(d.signal||d.action||d.side||"").trim().toUpperCase();if(s==="BUY"||s==="LONG")return "buy";if(s==="SELL"||s==="SHORT")return "sell";return null}
+function ageText(d){if(!d||!d.received_at)return "待機";const sec=Math.max(0,Math.round((Date.now()-new Date(d.received_at).getTime())/1000));return sec<60?`${sec}秒前`:`${Math.floor(sec/60)}分前`}
+function setBreak(name,on){const el=document.querySelector(`[data-break="${name}"]`);if(el)el.checked=!!on}
+function apsDirection(d){if(!d)return null;const a=parseFloat(d.alert);if(a===1)return "up";if(a===-1)return "down";const s=String(d.signal||d.direction||"").toUpperCase();if(s==="BUY"||s==="UP"||s==="LONG")return "up";if(s==="SELL"||s==="DOWN"||s==="SHORT")return "down";return null}
+function applyBreakAutomation(d,apsDir){
+ const b=String(d.break||"").toUpperCase(),bd=b==="UP"?"up":b==="DOWN"?"down":"none";
+ document.getElementById("breakDir").value=bd;
+ setBreak("break",bd!=="none");setBreak("close",bd!=="none");
+ let hold=false;if(prevCore&&bd!=="none"){const pb=String(prevCore.break||"").toUpperCase();hold=(bd==="up"&&pb==="UP")||(bd==="down"&&pb==="DOWN")}setBreak("hold",hold);
+ setBreak("aps",bd!=="none"&&apsDir===bd);
+ const p=parseFloat(d.price),e20=parseFloat(d.ema20);let es=false;
+ if(Number.isFinite(p)&&Number.isFinite(e20)&&bd!=="none")es=bd==="up"?p>=e20:p<=e20;else es=bd!=="none"&&dir(d.ema)===bd;
+ setBreak("ema",es);setBreak("retest",false);prevCore={...d};
 }
-setInterval(syncBTCJudge,2500);
-syncBTCJudge();
+async function syncAll(){
+ const st=document.getElementById("liveStatus"),ss=document.getElementById("sourceStatus");
+ try{
+  const r=await fetch(WORKER_URL,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json(),d=all.BTCJUDGE;
+  if(d){document.getElementById("current").value=d.price??"";document.getElementById("rangeHigh").value=d.range_high??"";document.getElementById("rangeLow").value=d.range_low??"";setSignal("tf1h",dir(d["1h"]));setSignal("tf15",dir(d["15m"]));setSignal("tf5",dir(d["5m"]));setSignal("ema",dir(d.ema))}
+  const ad=apsDirection(all.APS);if(ad)setSignal("aps",ad);
+  const to=tradeSignal(all.TAKEO);if(to)setSignal("takeo",to);
+  const tk=tradeSignal(all.TAKEKO);if(tk)setSignal("takeko",tk);
+  if(d)applyBreakAutomation(d,ad);
+  const t=d?.received_at?new Date(d.received_at).toLocaleTimeString("ja-JP"):"--";
+  st.textContent=d?`🟢 自動連携中 / ${t} / price ${d.price??"--"} / Core ${d.judge??"--"}`:"🟡 BTCJUDGEデータ待機中";
+  ss.textContent=`APS ${ageText(all.APS)} ・ たけお ${ageText(all.TAKEO)} ・ たけこ ${ageText(all.TAKEKO)}`;calc();
+ }catch(e){st.textContent="🔴 自動連携エラー: "+e.message}
+}
+setInterval(syncAll,2500);syncAll();
 
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
 </script></body></html>

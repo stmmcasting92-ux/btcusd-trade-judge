@@ -75,7 +75,7 @@ label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;co
 const defs=[
 ["tf1h","1H","up","flat","down"],["tf15","15m","up","flat","down"],["tf5","5m","up","flat","down"],
 ["aps","APS","up","flat","down"],["ema","EMA","up","flat","down"],
-["seo","せおくん","buy","none","sell"],["takeo","たけお","buy","none","sell"],["takeko","たけこ","buy","none","sell"]];
+["takeo","たけお","buy","none","sell"],["takeko","たけこ","buy","none","sell"]];
 const labels={up:"↑",flat:"－",down:"↓",buy:"BUY",none:"－",sell:"SELL"};
 let state={};
 const sig=document.getElementById("signals");
@@ -89,17 +89,56 @@ function num(id){let v=parseFloat(document.getElementById(id).value);return Numb
 function calc(){
  let up=0,down=0;
  ["tf1h","tf15","tf5","aps","ema"].forEach(k=>{if(state[k]=="up")up++;if(state[k]=="down")down++});
- ["seo","takeo","takeko"].forEach(k=>{if(state[k]=="buy")up++;if(state[k]=="sell")down++});
+ ["takeo","takeko"].forEach(k=>{if(state[k]=="buy")up++;if(state[k]=="sell")down++});
  let direction="wait",cls="neutral";
- if(up>=5 && up-down>=3){direction="LONG";cls="good"}
- else if(down>=5 && down-up>=3){direction="SHORT";cls="bad"}
- document.getElementById("judge").textContent=direction;
- document.getElementById("judge").className="status "+cls;
- let max=Math.max(up,down), conf=Math.round(max/8*100);
- document.getElementById("meter").style.width=conf+"%";
- document.getElementById("meter").className=cls;
- let aligned = direction==="LONG" ? up : direction==="SHORT" ? down : max;
- document.getElementById("judgeDetail").textContent=`上方向 ${up}/8 ・ 下方向 ${down}/8 ・ 一致度 ${aligned}/8`;
+
+// 方向判定は 1H・15m・5m・APS・EMA の5項目を使用
+let baseUp=0,baseDown=0;
+["tf1h","tf15","tf5","aps","ema"].forEach(k=>{
+  if(state[k]=="up")baseUp++;
+  if(state[k]=="down")baseDown++;
+});
+
+// 3/5以上かつ反対方向より優勢で基本方向を決定
+let bias="none";
+if(baseUp>=3 && baseUp>baseDown) bias="long";
+else if(baseDown>=3 && baseDown>baseUp) bias="short";
+
+// たけお＝押し目買い・戻り売りの確認
+const takeoOK=
+  (bias=="long" && state.takeo=="buy") ||
+  (bias=="short" && state.takeo=="sell");
+
+// たけこ＝最終タイミング確認
+const takekoOK=
+  (bias=="long" && state.takeko=="buy") ||
+  (bias=="short" && state.takeko=="sell");
+
+// 上位方向＋たけお一致を必須条件
+ if(bias=="long" && takeoOK && takekoOK){
+  direction="LONG";
+  cls="good";
+}else if(bias=="short" && takeoOK && takekoOK){
+  direction="SHORT";
+  cls="bad";
+}
+
+document.getElementById("judge").textContent=direction;
+document.getElementById("judge").className="status "+cls;
+
+// 一致度は7項目表示を維持
+let max=Math.max(up,down), conf=Math.round(max/7*100);
+document.getElementById("meter").style.width=conf+"%";
+document.getElementById("meter").className=cls;
+
+let timing=
+  bias=="none" ? "方向待ち" :
+  !takeoOK ? "たけお待ち" :
+  !takekoOK ? "たけこ待ち" :
+  "たけお・たけこ一致";
+
+document.getElementById("judgeDetail").textContent=
+  `上方向 ${up}/7 ・ 下方向 ${down}/7 ・ ${timing}`;
  const checks=[...document.querySelectorAll("[data-break]")]; let bc=checks.filter(x=>x.checked).length;
  const bd=document.getElementById("breakDir").value;
  let ba="ブレイク条件を入力してください", bac="neutral";

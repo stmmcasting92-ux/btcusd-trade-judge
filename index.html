@@ -206,7 +206,7 @@ try{let d=JSON.parse(localStorage.getItem("btcjudge2"));if(d){state={...state,..
 calc();
 const WORKER_URL="https://btc-judge-webhook.stmm-casting92.workers.dev/";
 let prevCore=null;
-function setSignal(id,v){if(!v)return;state[id]=v;document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v===v))}
+function setSignal(id,v){if(!v)return;state[id]=v;document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v===v));calc()}
 function dir(v){v=String(v||"").toUpperCase();return v==="UP"?"up":v==="DOWN"?"down":"flat"}
 function tradeSignal(d){if(!d)return null;const s=String(d.signal||d.action||d.side||"").trim().toUpperCase();if(s==="BUY"||s==="LONG")return "buy";if(s==="SELL"||s==="SHORT")return "sell";return null}
 function ageText(d){if(!d||!d.received_at)return "待機";const sec=Math.max(0,Math.round((Date.now()-new Date(d.received_at).getTime())/1000));return sec<60?`${sec}秒前`:`${Math.floor(sec/60)}分前`}

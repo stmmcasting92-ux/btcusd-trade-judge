@@ -56,7 +56,13 @@ label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;co
 
 <div class="card hero">
 <div class="sub">総合判定</div><div id="judge" class="status neutral">WAIT</div>
-<div id="judgeDetail" class="detail"></div><div class="meter"><span id="meter" style="width:0%"></span></div>
+<div class="detail" style="text-align:left;margin:16px 0">
+  <div id="stepBias">① 方向判定　⏳ 待ち</div>
+  <div id="stepTakeo">② たけお　　⏳ 待ち</div>
+  <div id="stepTakeko">③ たけこ　　⏳ 待ち</div>
+  <div id="stepEntry">④ エントリー判定　WAIT</div>
+</div>
+ <div id="judgeDetail" class="detail"></div><div class="meter"><span id="meter" style="width:0%"></span></div>
 </div>
 
 <div class="card"><h2>保有ポジション判定</h2><div id="positionAlert" class="alert neutral">ポジションなし</div><div id="pnl" class="tiny" style="margin-top:8px"></div></div>
@@ -139,6 +145,27 @@ let timing=
 
 document.getElementById("judgeDetail").textContent=
   `上方向 ${up}/7 ・ 下方向 ${down}/7 ・ ${timing}`;
+// 4段階判定表示
+document.getElementById("stepBias").textContent =
+  bias=="long" ? "① 方向判定　↑ LONG方向 ✓" :
+  bias=="short" ? "① 方向判定　↓ SHORT方向 ✓" :
+  "① 方向判定　⏳ 待ち";
+
+document.getElementById("stepTakeo").textContent =
+  bias=="none" ? "② たけお　　－" :
+  takeoOK ? `② たけお　　${state.takeo.toUpperCase()} ✓` :
+  `② たけお　　${state.takeo=="none" ? "待ち" : state.takeo.toUpperCase()+" ✕"}`;
+
+document.getElementById("stepTakeko").textContent =
+  bias=="none" ? "③ たけこ　　－" :
+  !takeoOK ? "③ たけこ　　－" :
+  takekoOK ? `③ たけこ　　${state.takeko.toUpperCase()} ✓` :
+  `③ たけこ　　${state.takeko=="none" ? "待ち" : state.takeko.toUpperCase()+" ✕"}`;
+
+document.getElementById("stepEntry").textContent =
+  direction=="LONG" ? "④ エントリー判定　LONG ✓" :
+  direction=="SHORT" ? "④ エントリー判定　SHORT ✓" :
+  "④ エントリー判定　WAIT";
  const checks=[...document.querySelectorAll("[data-break]")]; let bc=checks.filter(x=>x.checked).length;
  const bd=document.getElementById("breakDir").value;
  let ba="ブレイク条件を入力してください", bac="neutral";

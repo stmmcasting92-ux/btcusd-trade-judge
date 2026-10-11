@@ -28,6 +28,14 @@ label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;co
 <div class="card"><h2>自動連携</h2><div id="liveStatus" class="tiny">Worker/KV 接続待機...</div><div id="sourceStatus" class="tiny" style="margin-top:6px"></div></div>
 
 <div class="card">
+  <h2>BTCUSD Flash警報</h2>
+  <div id="flashStatus" class="alert neutral">
+    Flash通知待機中
+  </div>
+  <div id="flashDetail" class="tiny"></div>
+</div>
+
+<div class="card">
 <h2>ポジション・価格</h2>
 <div class="grid">
 <div><label>保有ポジション</label><select id="position"><option value="none">なし</option><option value="long">LONG</option><option value="short">SHORT</option></select></div>
@@ -223,19 +231,103 @@ function applyBreakAutomation(d,apsDir){
  setBreak("ema",es);setBreak("retest",false);prevCore={...d};
 }
 async function syncAll(){
- const st=document.getElementById("liveStatus"),ss=document.getElementById("sourceStatus");
- try{
-  const r=await fetch(WORKER_URL,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);const all=await r.json(),d=all.BTCJUDGE;
-  if(d){document.getElementById("current").value=d.price??"";document.getElementById("rangeHigh").value=d.range_high??"";document.getElementById("rangeLow").value=d.range_low??"";setSignal("tf1h",dir(d["1h"]));setSignal("tf15",dir(d["15m"]));setSignal("tf5",dir(d["5m"]));setSignal("ema",dir(d.ema))}
-  const ad=apsDirection(all.APS);if(ad)setSignal("aps",ad);
-  const to=tradeSignal(all.TAKEO);if(to)setSignal("takeo",to);
-  const to15=tradeSignal(all.TAKEO15);if(to15)setSignal("takeo15",to15);
-  const tk=tradeSignal(all.TAKEKO);if(tk)setSignal("takeko",tk);
-  if(d)applyBreakAutomation(d,ad);
-  const t=d?.received_at?new Date(d.received_at).toLocaleTimeString("ja-JP"):"--";
-  st.textContent=d?`🟢 自動連携中 / ${t} / price ${d.price??"--"} / Core ${d.judge??"--"}`:"🟡 BTCJUDGEデータ待機中";
-  ss.textContent=`APS ${ageText(all.APS)} ・ たけお ${ageText(all.TAKEO)} ・ たけこ ${ageText(all.TAKEKO)}`;calc();
- }catch(e){st.textContent="🔴 自動連携エラー: "+e.message}
+ 
+async function syncAll(){
+ const st=document.getElementById("liveStatus");
+ const ss=document.getElementById("sourceStatus");
+ const fs=document.getElementById("flashStatus");
+ const fd=document.getElementById("flashDetail");
+
+ try {
+  const r=await fetch(WORKER_URL,{cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+
+  const all=await r.json();
+  const d=all.BTCJUDGE;
+
+  if(d){
+   const price=Number(d.price);
+   if(Number.isFinite(price))
+    document.getElementById("current").value=price;
+
+   if(d.range_high!=null)
+    document.getElementById("rangeHigh").value=d.range_high;
+   if(d.range_low!=null)
+    document.getElementById("rangeLow").value=d.range_low;
+
+   if(d["1h"]) setSignal("tf1h",dir(d["1h"]));
+   if(d["15m"]) setSignal("tf15",dir(d["15m"]));
+   if(d["5m"]) setSignal("tf5",dir(d["5m"]));
+
+   // EMAの数値から20EMAと75EMAの位置関係を表示
+   const e20=Number(d.ema20);
+   const e75=Number(d.ema75);
+   if(Number.isFinite(e20)&&Number.isFinite(e75)&&e20!==e75){
+    setSignal("ema",e20>e75?"up":"down");
+   }
+
+   const event=String(d.event||"").toUpperCase();
+   const direction=String(d.direction||"").toUpperCase();
+   const judge=String(d.judge||"").toUpperCase();
+
+   if(event){
+    fs.textContent=
+     (event==="EARLY_MOVE"?"🚨 急変検知":
+      event==="CAUTION_HIGH"?"🚨 強い警戒":
+      event==="CAUTION"?"⚠️ 警戒":
+      event==="REVERSAL_CANDIDATE"?"⚠️ 反転候補":
+      event==="DIRECTION_CONFIRMATION"?"方向確認":
+      "Flash通知: "+event);
+
+    fs.className="alert "+
+     (event==="EARLY_MOVE"||event==="CAUTION_HIGH"?"bad":
+      event==="CAUTION"||event==="REVERSAL_CANDIDATE"?"warn":
+      "neutral");
+
+    fd.textContent=
+     "方向: "+(direction||"--")+
+     " / 判定: "+(judge||"--")+
+     " / 価格: "+(d.price??"--")+
+     " / "+ageText(d);
+   } else {
+    fs.textContent="Flash通知待機中（最新データにEVENTなし）";
+    fs.className="alert neutral";
+    fd.textContent="最新の判定: "+(judge||"--");
+   }
+
+   st.textContent=
+    "🟢 自動連携中 / "+ageText(d)+
+    " / price "+(d.price??"--")+
+    " / "+(judge||"--");
+  } else {
+   st.textContent="🟡 BTCJUDGEデータ待機中";
+  }
+
+  const ad=apsDirection(all.APS);
+  if(ad) setSignal("aps",ad);
+
+  const to=tradeSignal(all.TAKEO);
+  if(to) setSignal("takeo",to);
+
+  const to15=tradeSignal(all.TAKEO15);
+  if(to15) setSignal("takeo15",to15);
+
+  const tk=tradeSignal(all.TAKEKO);
+  if(tk) setSignal("takeko",tk);
+
+  if(d) applyBreakAutomation(d,ad);
+
+  ss.textContent=
+   "APS "+ageText(all.APS)+
+   " ・ たけお "+ageText(all.TAKEO)+
+   " ・ たけこ "+ageText(all.TAKEKO);
+
+  calc();
+ } catch(e) {
+  st.textContent="🔴 自動連携エラー: "+e.message;
+ }
+}
+
 }
 setInterval(syncAll,2500);syncAll();
 

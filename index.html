@@ -1,335 +1,197 @@
+
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f14">
-<link rel="manifest" href="manifest.json">
-<title>BTCUSD Trade Judge</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08101d">
+<title>BTCUSD JUDGE</title>
 <style>
-:root{--bg:#0b0f14;--card:#151b23;--line:#293241;--txt:#f3f6fa;--mut:#93a1b2;--good:#24c875;--bad:#ff5b62;--warn:#ffb020;--blue:#4da3ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.wrap{max-width:680px;margin:auto;padding:18px 14px 40px}.top{display:flex;justify-content:space-between;align-items:end;margin-bottom:14px}
-h1{font-size:22px;margin:0}.sub{color:var(--mut);font-size:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;margin:12px 0}
-h2{font-size:15px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.row{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:center;margin:9px 0}
-label{font-size:13px;color:#cbd5e1}input,select{width:100%;background:#0e141b;color:white;border:1px solid #354052;border-radius:11px;padding:11px;font-size:16px}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.seg button{border:1px solid #354052;background:#0e141b;color:#cbd5e1;border-radius:10px;padding:10px 3px}
-.seg button.on{border-color:var(--blue);background:#17314b;color:white}.checks label{display:flex;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #252d38}
-.checks input{width:20px;height:20px}.hero{text-align:center;padding:20px 10px}.hero .status{font-size:31px;font-weight:800}.hero .detail{margin-top:8px;color:var(--mut);line-height:1.55}
-.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.neutral{color:#dbe4ee}
-.meter{height:9px;background:#28313d;border-radius:9px;overflow:hidden;margin-top:12px}.meter span{display:block;height:100%;background:currentColor}
-.alert{font-size:19px;font-weight:750;line-height:1.45}.tiny{font-size:12px;color:var(--mut);line-height:1.5}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions button{padding:12px;border-radius:11px;border:1px solid #354052;background:#101821;color:white}
-@media(max-width:450px){.grid{grid-template-columns:1fr}.row{grid-template-columns:78px 1fr}}
+*{box-sizing:border-box}
+body{background:#08101d;color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0}
+main{max-width:720px;margin:auto;padding:18px 14px 70px}
+h1{font-size:26px;margin:0}
+.sub,.label{color:#9fb0c9;font-size:13px}
+.card{background:#111c2e;border:1px solid #25344d;border-radius:18px;padding:17px;margin:13px 0}
+.hero{text-align:center;padding:26px 12px}
+.price{font-size:42px;font-weight:850;margin:12px}
+.judge{font-size:36px;font-weight:900;color:#f5b942;margin:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tile{background:#0b1424;border:1px solid #25344d;border-radius:12px;padding:13px;min-width:0}
+.tile b{float:right}
+.row{display:flex;justify-content:space-between;border-bottom:1px solid #25344d;padding:12px 0;gap:12px}
+.row:last-child{border:0}
+.row b{overflow-wrap:anywhere;text-align:right}
+.head{color:#9fb0c9;font-size:13px;font-weight:700;margin-bottom:12px}
+.note{color:#aebed3;font-size:12px;line-height:1.7}
+.up{color:#72e6ad!important}
+.down{color:#ff7d8b!important}
+.wait{color:#f5b942!important}
+button{padding:12px 18px;border:1px solid #344760;border-radius:12px;background:#182840;color:white}
 </style>
 </head>
-<body><div class="wrap">
-<div class="top"><div><h1>BTCUSD Trade Judge</h1><div class="sub">Ver.4 · 全シグナル自動連携 / リスク警報</div></div><div class="sub" id="saved"></div></div>
+<body>
+<main>
+<h1>BTCUSD JUDGE</h1>
+<div class="sub">TradingView → Cloudflare Worker → Live PWA | Standalone v1.1</div>
 
-<div class="card"><h2>自動連携</h2><div id="liveStatus" class="tiny">Worker/KV 接続待機...</div><div id="sourceStatus" class="tiny" style="margin-top:6px"></div></div>
-
-<div class="card">
-  <h2>BTCUSD Flash警報</h2>
-  <div id="flashStatus" class="alert neutral">
-    Flash通知待機中
-  </div>
-  <div id="flashDetail" class="tiny"></div>
+<div class="card hero">
+  <div class="sub">CURRENT PRICE</div>
+  <div id="price" class="price">--</div>
+  <div id="judge" class="judge">WAIT</div>
+  <div id="reason">データ確認中</div>
+  <p class="note" id="status">接続中</p>
 </div>
 
 <div class="card">
-<h2>ポジション・価格</h2>
-<div class="grid">
-<div><label>保有ポジション</label><select id="position"><option value="none">なし</option><option value="long">LONG</option><option value="short">SHORT</option></select></div>
-<div><label>エントリー価格</label><input id="entry" type="number" step="0.01" placeholder="例 84500"></div>
-<div><label>現在価格</label><input id="current" type="number" step="0.01" placeholder="例 84720"></div>
-<div><label>レンジ上限</label><input id="rangeHigh" type="number" step="0.01" placeholder="例 84600"></div>
-<div><label>レンジ下限</label><input id="rangeLow" type="number" step="0.01" placeholder="例 83800"></div>
+  <div class="head">MULTI TIMEFRAME</div>
+  <div class="grid" id="tf"></div>
 </div>
-</div>
-
-<div class="card"><h2>上位足 → 1分トリガー</h2>
-<div id="signals"></div></div>
 
 <div class="card">
-<h2>レンジブレイク確認</h2>
-<div class="checks">
-<label><input type="checkbox" data-break="break">レンジを突破</label>
-<label><input type="checkbox" data-break="close">終値で突破</label>
-<label><input type="checkbox" data-break="hold">次足も突破側を維持</label>
-<label><input type="checkbox" data-break="aps">APSがブレイク方向</label>
-<label><input type="checkbox" data-break="ema">EMA20がブレイク方向を支持</label>
-<label><input type="checkbox" data-break="retest">リテスト成功 / レンジ内へ戻らない</label>
+  <div class="head">EMA TREND</div>
+  <div id="ema"></div>
 </div>
-<div style="margin-top:12px"><label>ブレイク方向</label><select id="breakDir"><option value="none">未確定</option><option value="up">上抜け</option><option value="down">下抜け</option></select></div>
+
+<div class="card">
+  <div class="head">4H PRICE ZONE</div>
+  <div id="zone4"></div>
+</div>
+
+<div class="card">
+  <div class="head">1H PRICE ZONE</div>
+  <div id="zone1"></div>
+</div>
+
+<div class="card">
+  <div class="head">ENTRY CONFIRMATION</div>
+  <div class="grid" id="entry"></div>
 </div>
 
 <div class="card hero">
-<div class="sub">総合判定</div><div id="judge" class="status neutral">WAIT</div>
-<div class="detail" style="text-align:left;margin:16px 0">
-  <div id="stepBias">① 方向判定　⏳ 待ち</div>
-  <div id="stepTakeo">② たけお　　⏳ 待ち</div>
-  <div id="stepTakeko">③ たけこ　　⏳ 待ち</div>
-  <div id="stepEntry">④ エントリー判定　WAIT</div>
-</div>
- <div id="judgeDetail" class="detail"></div><div class="meter"><span id="meter" style="width:0%"></span></div>
+  <div class="sub">FINAL JUDGE</div>
+  <div class="judge" id="final">WAIT</div>
+  <div id="finalReason">条件確認待ち</div>
 </div>
 
-<div class="card"><h2>保有ポジション判定</h2><div id="positionAlert" class="alert neutral">ポジションなし</div><div id="pnl" class="tiny" style="margin-top:8px"></div></div>
-
-<div class="card"><h2>ブレイク警報</h2><div id="breakAlert" class="alert neutral">ブレイク条件を入力してください</div><div id="breakCount" class="tiny"></div></div>
-
-<div class="card"><h2>注文前チェック</h2>
-<div class="grid"><div><label>SL</label><input id="sl" type="number" step="0.01"></div><div><label>TP</label><input id="tp" type="number" step="0.01"></div></div>
-<div id="rr" class="tiny" style="margin-top:10px">RR: --</div>
+<div class="card">
+  <div class="head">INITIAL MOVE / 1〜5分先</div>
+  <div class="grid" id="initial"></div>
+  <p class="note">将来の価格を保証するものではありません。必要なデータがない場合は未取得と表示します。</p>
 </div>
 
-<div class="actions"><button id="reset">リセット</button><button id="save">保存</button></div>
-<p class="tiny">判定は設定したルールを機械的に表示する補助ツールです。価格・シグナルはWorker/KVから自動取得します。発注は行いません。損切り・発注はご自身の判断で行ってください。</p>
+<div class="card">
+  <div class="head">CONNECTION</div>
+  <div id="connection" class="note">確認中</div>
+  <p><button onclick="refresh()">今すぐ更新</button></p>
+  <div class="note">新しい受信が3分以上ない場合はWAIT固定。表示更新だけではデータ更新とみなしません。</div>
 </div>
+</main>
+
 <script>
-const defs=[
-["tf1h","1H","up","flat","down"],["tf15","15m","up","flat","down"],["tf5","5m","up","flat","down"],
-["aps","APS","up","flat","down"],["ema","EMA","up","flat","down"],
-["takeo","たけお","buy","none","sell"],["takeo15","たけお15分","buy","none","sell"],["takeko","たけこ","buy","none","sell"]];
-const labels={up:"↑",flat:"－",down:"↓",buy:"BUY",none:"－",sell:"SELL"};
-let state={};
-const sig=document.getElementById("signals");
-defs.forEach(d=>{
- const [id,name,a,b,c]=d; state[id]=b;
- const row=document.createElement("div"); row.className="row";
- row.innerHTML=`<label>${name}</label><div class="seg">${[a,b,c].map(v=>`<button data-id="${id}" data-v="${v}" class="${v===b?'on':''}">${labels[v]}</button>`).join("")}</div>`;
- sig.appendChild(row);
-});
-function num(id){let v=parseFloat(document.getElementById(id).value);return Number.isFinite(v)?v:null}
-function calc(){
- let up=0,down=0;
- ["tf1h","tf15","tf5","aps","ema"].forEach(k=>{if(state[k]=="up")up++;if(state[k]=="down")down++});
- ["takeo","takeko"].forEach(k=>{if(state[k]=="buy")up++;if(state[k]=="sell")down++});
- let direction="wait",cls="neutral";
+'use strict';
 
-// 方向判定は 1H・15m・5m・APS・EMA の5項目を使用
-let baseUp=0,baseDown=0;
-["tf1h","tf15","tf5","aps","ema"].forEach(k=>{
-  if(state[k]=="up")baseUp++;
-  if(state[k]=="down")baseDown++;
-});
+const URL='https://btc-judge-webhook.stmm-casting92.workers.dev/';
+const el=id=>document.getElementById(id);
 
-// 3/5以上かつ反対方向より優勢で基本方向を決定
-let bias="none";
-if(baseUp>=3 && baseUp>baseDown) bias="long";
-else if(baseDown>=3 && baseDown>baseUp) bias="short";
+const val=(o,...names)=>{
+  for(const n of names)
+    if(o&&o[n]!==undefined&&o[n]!==null&&o[n]!==''&&o[n]!=='null')
+      return o[n];
+  return null;
+};
 
-// たけお＝押し目買い・戻り売りの確認
-const takeoOK=
-  (bias=="long" && state.takeo=="buy") ||
-  (bias=="short" && state.takeo=="sell");
+const fmt=v=>v===null||v===undefined?'--':String(v);
 
-// たけこ＝最終タイミング確認
-const takekoOK=
-  (bias=="long" && state.takeko=="buy") ||
-  (bias=="short" && state.takeko=="sell");
+const row=(n,v)=>`<div class="row"><span class="label">${n}</span><b>${fmt(v)}</b></div>`;
 
-// 上位方向＋たけお一致を必須条件
- if(bias=="long" && takeoOK && takekoOK){
-  direction="LONG";
-  cls="good";
-}else if(bias=="short" && takeoOK && takekoOK){
-  direction="SHORT";
-  cls="bad";
-}
+const dir=v=>['UP','BUY','LONG'].includes(String(v).toUpperCase())?'UP':['DOWN','SELL','SHORT'].includes(String(v).toUpperCase())?'DOWN':'--';
 
-document.getElementById("judge").textContent=direction;
-document.getElementById("judge").className="status "+cls;
+const tile=(n,v)=>`<div class="tile">${n} <b class="${dir(v)==='UP'?'up':dir(v)==='DOWN'?'down':''}">${fmt(v)}</b></div>`;
 
-// 一致度は7項目表示を維持
-let max=Math.max(up,down), conf=Math.round(max/7*100);
-document.getElementById("meter").style.width=conf+"%";
-document.getElementById("meter").className=cls;
+function render(a){
+  const d=a.BTCJUDGE||{};
+  const stamp=val(d,'received_at')||a.updated;
+  const ms=Date.parse(stamp||'');
+  const age=Number.isFinite(ms)?Date.now()-ms:Infinity;
+  const fresh=age>=0&&age<=180000;
+  const p=val(d,'price','close');
 
-let timing=
-  bias=="none" ? "方向待ち" :
-  !takeoOK ? "たけお待ち" :
-  !takekoOK ? "たけこ待ち" :
-  "たけお・たけこ一致";
+  el('price').textContent=fresh?fmt(p):'--';
 
-document.getElementById("judgeDetail").textContent=
-  `上方向 ${up}/7 ・ 下方向 ${down}/7 ・ ${timing}`;
-// 4段階判定表示
-document.getElementById("stepBias").textContent =
-  bias=="long" ? "① 方向判定　↑ LONG方向 ✓" :
-  bias=="short" ? "① 方向判定　↓ SHORT方向 ✓" :
-  "① 方向判定　⏳ 待ち";
+  el('tf').innerHTML=['4H','1H','15M','5M','1M'].map(n=>tile(n,dir(val(d,n.toLowerCase(),n,'direction_'+n.toLowerCase())))).join('');
 
-document.getElementById("stepTakeo").textContent =
-  bias=="none" ? "② たけお　　－" :
-  takeoOK ? `② たけお　　${state.takeo.toUpperCase()} ✓` :
-  `② たけお　　${state.takeo=="none" ? "待ち" : state.takeo.toUpperCase()+" ✕"}`;
+  el('ema').innerHTML=[
+    ['EMA20',val(d,'ema20','ema_20')],
+    ['EMA75',val(d,'ema75','ema_75')],
+    ['EMA200',val(d,'ema200','ema_200')],
+    ['EMA200接近',val(d,'nearEMA200','near_ema200')],
+    ['環境',val(d,'environment','trend')]
+  ].map(x=>row(...x)).join('');
 
-document.getElementById("stepTakeko").textContent =
-  bias=="none" ? "③ たけこ　　－" :
-  !takeoOK ? "③ たけこ　　－" :
-  takekoOK ? `③ たけこ　　${state.takeko.toUpperCase()} ✓` :
-  `③ たけこ　　${state.takeko=="none" ? "待ち" : state.takeko.toUpperCase()+" ✕"}`;
+  for(const [id,k] of [['zone4','4h'],['zone1','1h']]){
+    const h=val(d,k+'_high',k+'_zone_high');
+    const l=val(d,k+'_low',k+'_zone_low');
+    let pos='--';
 
-document.getElementById("stepEntry").textContent =
-  direction=="LONG" ? "④ エントリー判定　LONG ✓" :
-  direction=="SHORT" ? "④ エントリー判定　SHORT ✓" :
-  "④ エントリー判定　WAIT";
- const checks=[...document.querySelectorAll("[data-break]")]; let bc=checks.filter(x=>x.checked).length;
- const bd=document.getElementById("breakDir").value;
- let ba="ブレイク条件を入力してください", bac="neutral";
- if(bd!="none"){
-   if(bc>=5){ba=(bd=="up"?"🟢 上抜け":"🔴 下抜け")+"シナリオ有効：逆張り禁止 / 順方向の押し・戻り待ち";bac=bd=="up"?"good":"bad"}
-   else if(bc==4){ba="🚨 逆ポジション撤退を優先して判断";bac="warn"}
-   else if(bc>=3){ba="⚠️ 逆張り新規エントリー禁止";bac="warn"}
-   else if(bc>=2){ba="⚠️ ブレイク警戒";bac="warn"}
-   else ba="まだブレイク確定扱いにしない";
- }
- document.getElementById("breakAlert").textContent=ba;document.getElementById("breakAlert").className="alert "+bac;
- document.getElementById("breakCount").textContent=`成立 ${bc}/6`;
- const pos=document.getElementById("position").value;
- let pa="ポジションなし", pac="neutral";
- if(pos!="none"){
-   const adverse=(pos=="short"&&bd=="up")||(pos=="long"&&bd=="down");
-   if(adverse&&bc>=5){pa=`🚨 ${pos.toUpperCase()}シナリオ無効 — 損切り条件成立`;pac="bad"}
-   else if(adverse&&bc>=4){pa=`⚠️ ${pos.toUpperCase()}撤退を優先して判断`;pac="warn"}
-   else if((pos=="short"&&direction=="LONG")||(pos=="long"&&direction=="SHORT")){pa=`⚠️ 総合判定が${pos.toUpperCase()}と逆方向`;pac="warn"}
-   else {pa=`${pos.toUpperCase()} 継続可否を監視`;pac=pos=="long"?"good":"bad"}
- }
- document.getElementById("positionAlert").textContent=pa;document.getElementById("positionAlert").className="alert "+pac;
- let e=num("entry"),cur=num("current");
- document.getElementById("pnl").textContent=(pos!="none"&&e&&cur)?`値幅: ${((pos=="long"?cur-e:e-cur)).toFixed(2)} USD`:"";
- let sl=num("sl"),tp=num("tp");
- if(pos!="none"&&e&&sl&&tp){
-   let risk=Math.abs(e-sl), reward=Math.abs(tp-e), rr=risk?reward/risk:null;
-   document.getElementById("rr").textContent=rr?`RR: 1:${rr.toFixed(2)} ${rr>=1.5?"✓":"⚠ 1.5未満"}`:"RR: --";
- } else document.getElementById("rr").textContent="RR: --";
-}
-document.addEventListener("click",e=>{
- if(e.target.dataset.id){let id=e.target.dataset.id;state[id]=e.target.dataset.v;document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v==state[id]));calc()}
-});
-document.querySelectorAll("input,select").forEach(x=>x.addEventListener("input",calc));
-document.getElementById("save").onclick=()=>{let data={state};document.querySelectorAll("input,select").forEach(x=>{if(x.id)data[x.id]=x.type=="checkbox"?x.checked:x.value});data.checks=[...document.querySelectorAll("[data-break]")].map(x=>x.checked);localStorage.setItem("btcjudge2",JSON.stringify(data));document.getElementById("saved").textContent="保存しました"};
-document.getElementById("reset").onclick=()=>{localStorage.removeItem("btcjudge2");location.reload()};
-try{let d=JSON.parse(localStorage.getItem("btcjudge2"));if(d){state={...state,...d.state};defs.forEach(x=>document.querySelectorAll(`[data-id="${x[0]}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v==state[x[0]])));Object.keys(d).forEach(k=>{let el=document.getElementById(k);if(el&&k!="state"&&k!="checks")el.value=d[k]});if(d.checks)d.checks.forEach((v,i)=>{let c=document.querySelectorAll("[data-break]")[i];if(c)c.checked=v})}}catch(e){}
-calc();
-const WORKER_URL="https://btc-judge-webhook.stmm-casting92.workers.dev/";
-let prevCore=null;
-function setSignal(id,v){if(!v)return;state[id]=v;document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>b.classList.toggle("on",b.dataset.v===v));calc()}
-function dir(v){v=String(v||"").toUpperCase();return v==="UP"?"up":v==="DOWN"?"down":"flat"}
-function tradeSignal(d){if(!d)return null;const s=String(d.signal||d.action||d.side||"").trim().toUpperCase();if(s==="BUY"||s==="LONG")return "buy";if(s==="SELL"||s==="SHORT")return "sell";return null}
-function ageText(d){if(!d||!d.received_at)return "待機";const sec=Math.max(0,Math.round((Date.now()-new Date(d.received_at).getTime())/1000));return sec<60?`${sec}秒前`:`${Math.floor(sec/60)}分前`}
-function setBreak(name,on){const el=document.querySelector(`[data-break="${name}"]`);if(el)el.checked=!!on}
-function apsDirection(d){if(!d)return null;const a=parseFloat(d.alert);if(a===1)return "up";if(a===-1)return "down";const s=String(d.signal||d.direction||"").toUpperCase();if(s==="BUY"||s==="UP"||s==="LONG")return "up";if(s==="SELL"||s==="DOWN"||s==="SHORT")return "down";return null}
-function applyBreakAutomation(d,apsDir){
- const b=String(d.break||"").toUpperCase(),bd=b==="UP"?"up":b==="DOWN"?"down":"none";
- document.getElementById("breakDir").value=bd;
- setBreak("break",bd!=="none");setBreak("close",bd!=="none");
- let hold=false;if(prevCore&&bd!=="none"){const pb=String(prevCore.break||"").toUpperCase();hold=(bd==="up"&&pb==="UP")||(bd==="down"&&pb==="DOWN")}setBreak("hold",hold);
- setBreak("aps",bd!=="none"&&apsDir===bd);
- const p=parseFloat(d.price),e20=parseFloat(d.ema20);let es=false;
- if(Number.isFinite(p)&&Number.isFinite(e20)&&bd!=="none")es=bd==="up"?p>=e20:p<=e20;else es=bd!=="none"&&dir(d.ema)===bd;
- setBreak("ema",es);setBreak("retest",false);prevCore={...d};
-}
-async function syncAll(){
- 
-async function syncAll(){
- const st=document.getElementById("liveStatus");
- const ss=document.getElementById("sourceStatus");
- const fs=document.getElementById("flashStatus");
- const fd=document.getElementById("flashDetail");
+    if(h!==null&&l!==null&&p!==null){
+      pos=Number(p)>Number(h)?'上抜け':Number(p)<Number(l)?'下抜け':'ゾーン内';
+    }
 
- try {
-  const r=await fetch(WORKER_URL,{cache:"no-store"});
-  if(!r.ok) throw new Error("HTTP "+r.status);
-
-  const all=await r.json();
-  const d=all.BTCJUDGE;
-
-  if(d){
-   const price=Number(d.price);
-   if(Number.isFinite(price))
-    document.getElementById("current").value=price;
-
-   if(d.range_high!=null)
-    document.getElementById("rangeHigh").value=d.range_high;
-   if(d.range_low!=null)
-    document.getElementById("rangeLow").value=d.range_low;
-
-   if(d["1h"]) setSignal("tf1h",dir(d["1h"]));
-   if(d["15m"]) setSignal("tf15",dir(d["15m"]));
-   if(d["5m"]) setSignal("tf5",dir(d["5m"]));
-
-   // EMAの数値から20EMAと75EMAの位置関係を表示
-   const e20=Number(d.ema20);
-   const e75=Number(d.ema75);
-   if(Number.isFinite(e20)&&Number.isFinite(e75)&&e20!==e75){
-    setSignal("ema",e20>e75?"up":"down");
-   }
-
-   const event=String(d.event||"").toUpperCase();
-   const direction=String(d.direction||"").toUpperCase();
-   const judge=String(d.judge||"").toUpperCase();
-
-   if(event){
-    fs.textContent=
-     (event==="EARLY_MOVE"?"🚨 急変検知":
-      event==="CAUTION_HIGH"?"🚨 強い警戒":
-      event==="CAUTION"?"⚠️ 警戒":
-      event==="REVERSAL_CANDIDATE"?"⚠️ 反転候補":
-      event==="DIRECTION_CONFIRMATION"?"方向確認":
-      "Flash通知: "+event);
-
-    fs.className="alert "+
-     (event==="EARLY_MOVE"||event==="CAUTION_HIGH"?"bad":
-      event==="CAUTION"||event==="REVERSAL_CANDIDATE"?"warn":
-      "neutral");
-
-    fd.textContent=
-     "方向: "+(direction||"--")+
-     " / 判定: "+(judge||"--")+
-     " / 価格: "+(d.price??"--")+
-     " / "+ageText(d);
-   } else {
-    fs.textContent="Flash通知待機中（最新データにEVENTなし）";
-    fs.className="alert neutral";
-    fd.textContent="最新の判定: "+(judge||"--");
-   }
-
-   st.textContent=
-    "🟢 自動連携中 / "+ageText(d)+
-    " / price "+(d.price??"--")+
-    " / "+(judge||"--");
-  } else {
-   st.textContent="🟡 BTCJUDGEデータ待機中";
+    el(id).innerHTML=row('Zone High',h)+row('Zone Low',l)+row('現在地',pos);
   }
 
-  const ad=apsDirection(all.APS);
-  if(ad) setSignal("aps",ad);
+  el('entry').innerHTML=[
+    ['出来高増加',val(d,'volume_increase','volume_up')],
+    ['ATR拡大',val(d,'atr_expansion','atr_up')],
+    ['終値ブレイク',val(d,'break','breakout')],
+    ['リテスト',val(d,'retest','retest_success')],
+    ['1M反発',val(d,'reject','rejection')],
+    ['EMA方向',val(d,'ema','ema_direction')]
+  ].map(([n,v])=>`<div class="tile"><div class="note">${n}</div><b>${fmt(v)}</b></div>`).join('');
 
-  const to=tradeSignal(all.TAKEO);
-  if(to) setSignal("takeo",to);
+  el('initial').innerHTML=[
+    ['初動方向',val(d,'initial_direction')],
+    ['継続スコア',val(d,'continuation_score')],
+    ['経過本数',val(d,'elapsed_bars')],
+    ['検知レンジ',val(d,'initial_range')]
+  ].map(([n,v])=>`<div class="tile"><div class="note">${n}</div><b>${fmt(v)}</b></div>`).join('');
 
-  const to15=tradeSignal(all.TAKEO15);
-  if(to15) setSignal("takeo15",to15);
+  // Pine Scriptの確定判定をそのまま採用
+  const pineJudge=String(val(d,'judge')||'WAIT').toUpperCase();
+  const decision=fresh&&['LONG','SHORT'].includes(pineJudge)?pineJudge:'WAIT';
 
-  const tk=tradeSignal(all.TAKEKO);
-  if(tk) setSignal("takeko",tk);
+  for(const id of ['judge','final']){
+    el(id).textContent=decision;
+    el(id).className='judge '+(decision==='LONG'?'up':decision==='SHORT'?'down':'wait');
+  }
 
-  if(d) applyBreakAutomation(d,ad);
+  el('reason').textContent=!fresh?'データ停止中・判定無効':decision==='WAIT'?'方向とエントリー条件の一致待ち':'Pine確定足の条件一致';
 
-  ss.textContent=
-   "APS "+ageText(all.APS)+
-   " ・ たけお "+ageText(all.TAKEO)+
-   " ・ たけこ "+ageText(all.TAKEKO);
+  el('finalReason').textContent=!fresh?'新規受信まで判定無効':decision==='WAIT'?'Pine判定 WAIT（条件不足）':'Pine確定判定（利益は保証しません）';
 
-  calc();
- } catch(e) {
-  st.textContent="🔴 自動連携エラー: "+e.message;
- }
+  el('status').textContent=(fresh?'🟢 有効':'🔴 停止')+' / 最終受信 '+fmt(stamp)+' / '+(age===Infinity?'時刻不明':Math.round(age/60000)+'分前');
 }
 
+async function refresh(){
+  try{
+    const r=await fetch(URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const a=await r.json();
+    render(a);
+    el('connection').textContent='Worker接続成功 / BTCJUDGE '+(a.BTCJUDGE?'受信済み':'未受信');
+  }catch(e){
+    el('judge').textContent='WAIT';
+    el('final').textContent='WAIT';
+    el('price').textContent='--';
+    el('reason').textContent='通信エラー';
+    el('status').textContent='🔴 データ取得不可';
+    el('connection').textContent=String(e);
+  }
 }
-setInterval(syncAll,2500);syncAll();
 
-if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
-</script></body></html>
+refresh();
+setInterval(refresh,10000);
+</script>
+</body>
+</html>

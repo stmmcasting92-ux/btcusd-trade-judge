@@ -1,197 +1,29 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08101d"><title>BTCUSD JUDGE</title><style>
+*{box-sizing:border-box}body{background:#08101d;color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0}main{max-width:720px;margin:auto;padding:18px 14px 70px}h1{font-size:26px;margin:0}.sub,.label{color:#9fb0c9;font-size:13px}.card{background:#111c2e;border:1px solid #25344d;border-radius:18px;padding:17px;margin:13px 0}.hero{text-align:center;padding:26px 12px}.price{font-size:42px;font-weight:850;margin:12px}.judge{font-size:36px;font-weight:900;color:#f5b942;margin:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tile{background:#0b1424;border:1px solid #25344d;border-radius:12px;padding:13px;min-width:0}.tile b{float:right}.row{display:flex;justify-content:space-between;border-bottom:1px solid #25344d;padding:12px 0;gap:12px}.row:last-child{border:0}.row b{overflow-wrap:anywhere;text-align:right}.head{color:#9fb0c9;font-size:13px;font-weight:700;margin-bottom:12px}.note{color:#aebed3;font-size:12px;line-height:1.7}.up{color:#72e6ad!important}.down{color:#ff7d8b!important}.wait{color:#f5b942!important}button{padding:12px 18px;border:1px solid #344760;border-radius:12px;background:#182840;color:white}
+</style></head><body><main><h1>BTCUSD JUDGE</h1><div class="sub">TradingView → Cloudflare Worker → Live PWA | Standalone v1.2</div>
+<div class="card hero"><div class="sub">CURRENT PRICE</div><div id="price" class="price">--</div><div id="judge" class="judge">WAIT</div><div id="reason">データ確認中</div><p class="note" id="status">接続中</p></div>
+<div class="card"><div class="head">MULTI TIMEFRAME</div><div class="grid" id="tf"></div></div>
+<div class="card"><div class="head">EMA TREND</div><div id="ema"></div></div>
+<div class="card"><div class="head">4H PRICE ZONE</div><div id="zone4"></div></div>
+<div class="card"><div class="head">1H PRICE ZONE</div><div id="zone1"></div></div>
+<div class="card"><div class="head">ENTRY CONFIRMATION</div><div class="grid" id="entry"></div></div>
+<div class="card hero"><div class="sub">FINAL JUDGE</div><div class="judge" id="final">WAIT</div><div id="finalReason">条件確認待ち</div></div>
+<div class="card"><div class="head">INITIAL MOVE / 1〜5分先</div><div class="grid" id="initial"></div><p class="note">将来の価格を保証するものではありません。必要なデータがない場合は未取得と表示します。</p></div>
 
-<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#08101d">
-<title>BTCUSD JUDGE</title>
-<style>
-*{box-sizing:border-box}
-body{background:#08101d;color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0}
-main{max-width:720px;margin:auto;padding:18px 14px 70px}
-h1{font-size:26px;margin:0}
-.sub,.label{color:#9fb0c9;font-size:13px}
-.card{background:#111c2e;border:1px solid #25344d;border-radius:18px;padding:17px;margin:13px 0}
-.hero{text-align:center;padding:26px 12px}
-.price{font-size:42px;font-weight:850;margin:12px}
-.judge{font-size:36px;font-weight:900;color:#f5b942;margin:12px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.tile{background:#0b1424;border:1px solid #25344d;border-radius:12px;padding:13px;min-width:0}
-.tile b{float:right}
-.row{display:flex;justify-content:space-between;border-bottom:1px solid #25344d;padding:12px 0;gap:12px}
-.row:last-child{border:0}
-.row b{overflow-wrap:anywhere;text-align:right}
-.head{color:#9fb0c9;font-size:13px;font-weight:700;margin-bottom:12px}
-.note{color:#aebed3;font-size:12px;line-height:1.7}
-.up{color:#72e6ad!important}
-.down{color:#ff7d8b!important}
-.wait{color:#f5b942!important}
-button{padding:12px 18px;border:1px solid #344760;border-radius:12px;background:#182840;color:white}
-</style>
-</head>
-<body>
-<main>
-<h1>BTCUSD JUDGE</h1>
-<div class="sub">TradingView → Cloudflare Worker → Live PWA | Standalone v1.1</div>
-
-<div class="card hero">
-  <div class="sub">CURRENT PRICE</div>
-  <div id="price" class="price">--</div>
-  <div id="judge" class="judge">WAIT</div>
-  <div id="reason">データ確認中</div>
-  <p class="note" id="status">接続中</p>
-</div>
-
-<div class="card">
-  <div class="head">MULTI TIMEFRAME</div>
-  <div class="grid" id="tf"></div>
-</div>
-
-<div class="card">
-  <div class="head">EMA TREND</div>
-  <div id="ema"></div>
-</div>
-
-<div class="card">
-  <div class="head">4H PRICE ZONE</div>
-  <div id="zone4"></div>
-</div>
-
-<div class="card">
-  <div class="head">1H PRICE ZONE</div>
-  <div id="zone1"></div>
-</div>
-
-<div class="card">
-  <div class="head">ENTRY CONFIRMATION</div>
-  <div class="grid" id="entry"></div>
-</div>
-
-<div class="card hero">
-  <div class="sub">FINAL JUDGE</div>
-  <div class="judge" id="final">WAIT</div>
-  <div id="finalReason">条件確認待ち</div>
-</div>
-
-<div class="card">
-  <div class="head">INITIAL MOVE / 1〜5分先</div>
-  <div class="grid" id="initial"></div>
-  <p class="note">将来の価格を保証するものではありません。必要なデータがない場合は未取得と表示します。</p>
-</div>
-
-<div class="card">
-  <div class="head">CONNECTION</div>
-  <div id="connection" class="note">確認中</div>
-  <p><button onclick="refresh()">今すぐ更新</button></p>
-  <div class="note">新しい受信が3分以上ない場合はWAIT固定。表示更新だけではデータ更新とみなしません。</div>
-</div>
-</main>
-
-<script>
-'use strict';
-
-const URL='https://btc-judge-webhook.stmm-casting92.workers.dev/';
-const el=id=>document.getElementById(id);
-
-const val=(o,...names)=>{
-  for(const n of names)
-    if(o&&o[n]!==undefined&&o[n]!==null&&o[n]!==''&&o[n]!=='null')
-      return o[n];
-  return null;
-};
-
-const fmt=v=>v===null||v===undefined?'--':String(v);
-
-const row=(n,v)=>`<div class="row"><span class="label">${n}</span><b>${fmt(v)}</b></div>`;
-
-const dir=v=>['UP','BUY','LONG'].includes(String(v).toUpperCase())?'UP':['DOWN','SELL','SHORT'].includes(String(v).toUpperCase())?'DOWN':'--';
-
-const tile=(n,v)=>`<div class="tile">${n} <b class="${dir(v)==='UP'?'up':dir(v)==='DOWN'?'down':''}">${fmt(v)}</b></div>`;
-
-function render(a){
-  const d=a.BTCJUDGE||{};
-  const stamp=val(d,'received_at')||a.updated;
-  const ms=Date.parse(stamp||'');
-  const age=Number.isFinite(ms)?Date.now()-ms:Infinity;
-  const fresh=age>=0&&age<=180000;
-  const p=val(d,'price','close');
-
-  el('price').textContent=fresh?fmt(p):'--';
-
-  el('tf').innerHTML=['4H','1H','15M','5M','1M'].map(n=>tile(n,dir(val(d,n.toLowerCase(),n,'direction_'+n.toLowerCase())))).join('');
-
-  el('ema').innerHTML=[
-    ['EMA20',val(d,'ema20','ema_20')],
-    ['EMA75',val(d,'ema75','ema_75')],
-    ['EMA200',val(d,'ema200','ema_200')],
-    ['EMA200接近',val(d,'nearEMA200','near_ema200')],
-    ['環境',val(d,'environment','trend')]
-  ].map(x=>row(...x)).join('');
-
-  for(const [id,k] of [['zone4','4h'],['zone1','1h']]){
-    const h=val(d,k+'_high',k+'_zone_high');
-    const l=val(d,k+'_low',k+'_zone_low');
-    let pos='--';
-
-    if(h!==null&&l!==null&&p!==null){
-      pos=Number(p)>Number(h)?'上抜け':Number(p)<Number(l)?'下抜け':'ゾーン内';
-    }
-
-    el(id).innerHTML=row('Zone High',h)+row('Zone Low',l)+row('現在地',pos);
-  }
-
-  el('entry').innerHTML=[
-    ['出来高増加',val(d,'volume_increase','volume_up')],
-    ['ATR拡大',val(d,'atr_expansion','atr_up')],
-    ['終値ブレイク',val(d,'break','breakout')],
-    ['リテスト',val(d,'retest','retest_success')],
-    ['1M反発',val(d,'reject','rejection')],
-    ['EMA方向',val(d,'ema','ema_direction')]
-  ].map(([n,v])=>`<div class="tile"><div class="note">${n}</div><b>${fmt(v)}</b></div>`).join('');
-
-  el('initial').innerHTML=[
-    ['初動方向',val(d,'initial_direction')],
-    ['継続スコア',val(d,'continuation_score')],
-    ['経過本数',val(d,'elapsed_bars')],
-    ['検知レンジ',val(d,'initial_range')]
-  ].map(([n,v])=>`<div class="tile"><div class="note">${n}</div><b>${fmt(v)}</b></div>`).join('');
-
-  // Pine Scriptの確定判定をそのまま採用
-  const pineJudge=String(val(d,'judge')||'WAIT').toUpperCase();
-  const decision=fresh&&['LONG','SHORT'].includes(pineJudge)?pineJudge:'WAIT';
-
-  for(const id of ['judge','final']){
-    el(id).textContent=decision;
-    el(id).className='judge '+(decision==='LONG'?'up':decision==='SHORT'?'down':'wait');
-  }
-
-  el('reason').textContent=!fresh?'データ停止中・判定無効':decision==='WAIT'?'方向とエントリー条件の一致待ち':'Pine確定足の条件一致';
-
-  el('finalReason').textContent=!fresh?'新規受信まで判定無効':decision==='WAIT'?'Pine判定 WAIT（条件不足）':'Pine確定判定（利益は保証しません）';
-
-  el('status').textContent=(fresh?'🟢 有効':'🔴 停止')+' / 最終受信 '+fmt(stamp)+' / '+(age===Infinity?'時刻不明':Math.round(age/60000)+'分前');
-}
-
-async function refresh(){
-  try{
-    const r=await fetch(URL+'?t='+Date.now(),{cache:'no-store'});
-    if(!r.ok)throw Error('HTTP '+r.status);
-    const a=await r.json();
-    render(a);
-    el('connection').textContent='Worker接続成功 / BTCJUDGE '+(a.BTCJUDGE?'受信済み':'未受信');
-  }catch(e){
-    el('judge').textContent='WAIT';
-    el('final').textContent='WAIT';
-    el('price').textContent='--';
-    el('reason').textContent='通信エラー';
-    el('status').textContent='🔴 データ取得不可';
-    el('connection').textContent=String(e);
-  }
-}
-
-refresh();
-setInterval(refresh,10000);
-</script>
-</body>
-</html>
+<div class="card"><div class="head">CONNECTION</div><div id="connection" class="note">確認中</div><p><button onclick="refresh()">今すぐ更新</button></p><div class="note">新しい受信が3分以上ない場合はWAIT固定。表示更新だけではデータ更新とみなしません。</div></div>
+</main><script>
+'use strict';const URL='https://btc-judge-webhook.stmm-casting92.workers.dev/';const el=id=>document.getElementById(id);const val=(o,...names)=>{for(const n of names)if(o&&o[n]!==undefined&&o[n]!==null&&o[n]!==''&&o[n]!=='null')return o[n];return null};const fmt=v=>v===null||v===undefined?'--':String(v);const row=(n,v)=>`<div class="row"><span class="label">${n}</span><b>${fmt(v)}</b></div>`;const dir=v=>['UP','BUY','LONG'].includes(String(v).toUpperCase())?'UP':['DOWN','SELL','SHORT'].includes(String(v).toUpperCase())?'DOWN':String(v).toUpperCase()==='FLAT'?'FLAT':'--';const tile=(n,v)=>`<div class="tile">${n} <b class="${dir(v)==='UP'?'up':dir(v)==='DOWN'?'down':''}">${fmt(v)}</b></div>`;
+function render(a){const d=a.BTCJUDGE||{},stamp=val(d,'received_at')||a.updated,ms=Date.parse(stamp||''),age=Number.isFinite(ms)?Date.now()-ms:Infinity,fresh=age>=0&&age<=180000,p=val(d,'price','close');el('price').textContent=fresh?fmt(p):'--';
+el('tf').innerHTML=['4H','1H','15M','5M','1M'].map(n=>tile(n,dir(val(d,n.toLowerCase(),n,'direction_'+n.toLowerCase())))).join('');
+el('ema').innerHTML=[['EMA20',val(d,'ema20','ema_20')],['EMA75',val(d,'ema75','ema_75')],['EMA200',val(d,'ema200','ema_200')],['EMA200接近',val(d,'nearEMA200','near_ema200')],['環境',val(d,'environment','trend')||val(d,'direction')]].map(x=>row(...x)).join('');
+for(const [id,k] of [['zone4','4h'],['zone1','1h']]){const h=val(d,k+'_high',k+'_zone_high'),l=val(d,k+'_low',k+'_zone_low');let pos='--';if(h!==null&&l!==null&&p!==null){pos=Number(p)>Number(h)?'上抜け':Number(p)<Number(l)?'下抜け':'ゾーン内'}el(id).innerHTML=row('Zone High',h)+row('Zone Low',l)+row('現在地',pos)}
+el('entry').innerHTML=[['出来高増加',val(d,'volume_increase','volume_up')],['ATR拡大',val(d,'atr_expansion','atr_up')],['終値ブレイク',val(d,'break','breakout')],['リテスト',val(d,'retest','retest_success')],['1M反発',val(d,'reject','rejection')],['EMA方向',val(d,'ema','ema_direction')]].map(([n,v])=>`<div class="tile"><div class="note">${n}</div><b>${fmt(v)}</b></div>`).join('');
+el('initial').innerHTML=[['初動方向',fresh?val(d,'initial_direction'):'--'],['継続スコア',fresh?val(d,'continuation_score'):'--'],['経過本数',fresh?val(d,'elapsed_bars'):'--'],['検知レンジ',fresh?val(d,'initial_range'):'--']].map(([n,v])=>`<div class="tile"><div class="note">${n}</div><b>${fmt(v)}</b></div>`).join('');// Follow Pine's confirmed signal exactly; do not invent a second strategy in the app.
+const pineJudge=String(val(d,'judge')||'WAIT').toUpperCase();
+const decision=fresh&&['LONG','SHORT'].includes(pineJudge)?pineJudge:'WAIT';
+for(const id of ['judge','final']){el(id).textContent=decision;el(id).className='judge '+(decision==='LONG'?'up':decision==='SHORT'?'down':'wait')}
+el('reason').textContent=!fresh?'データ停止中・判定無効':decision==='WAIT'?'方向とエントリー条件の一致待ち':'Pine確定足の条件一致';
+el('finalReason').textContent=!fresh?'新規受信まで判定無効':decision==='WAIT'?'Pine判定 WAIT（条件不足）':'Pine確定判定（利益は保証しません）';
+el('status').textContent=(fresh?'🟢 有効':'🔴 停止')+' / 最終受信 '+fmt(stamp)+' / '+(age===Infinity?'時刻不明':Math.round(age/60000)+'分前');}
+async function refresh(){try{const r=await fetch(URL+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const a=await r.json();render(a);el('connection').textContent='Worker接続成功 / BTCJUDGE '+(a.BTCJUDGE?'受信済み':'未受信')}catch(e){el('judge').textContent='WAIT';el('final').textContent='WAIT';el('price').textContent='--';el('reason').textContent='通信エラー';el('status').textContent='🔴 データ取得不可';el('connection').textContent=String(e)}}refresh();setInterval(refresh,10000);
+</script></body></html>
